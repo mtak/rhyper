@@ -48,43 +48,9 @@ import ApplicationServices
 import Carbon.HIToolbox
 import Foundation
 
+// Remapping rules live in Hyper.swift.
+
 let version = "0.1.0"
-
-// MARK: - Flag arithmetic
-
-/// Device-dependent modifier bits from IOKit's IOLLEvent.h (NX_DEVICE*KEYMASK).
-/// CGEventFlags only names the device-independent masks.
-enum DeviceFlag {
-    static let leftControl: UInt64 = 0x0000_0001
-    static let leftShift: UInt64 = 0x0000_0002
-    static let leftCommand: UInt64 = 0x0000_0008
-    static let rightCommand: UInt64 = 0x0000_0010
-    static let leftOption: UInt64 = 0x0000_0020
-}
-
-enum Hyper {
-    static let mask: UInt64 =
-        CGEventFlags([.maskControl, .maskAlternate, .maskShift, .maskCommand]).rawValue
-        | DeviceFlag.leftControl | DeviceFlag.leftOption
-        | DeviceFlag.leftShift | DeviceFlag.leftCommand
-
-    static func isRightCommandDown(_ flags: CGEventFlags) -> Bool {
-        flags.rawValue & DeviceFlag.rightCommand != 0
-    }
-
-    /// Remove Right Command; keep generic Command only if Left Command is down.
-    static func strippingRightCommand(_ flags: CGEventFlags) -> CGEventFlags {
-        var raw = flags.rawValue & ~DeviceFlag.rightCommand
-        if raw & DeviceFlag.leftCommand == 0 {
-            raw &= ~CGEventFlags.maskCommand.rawValue
-        }
-        return CGEventFlags(rawValue: raw)
-    }
-
-    static func applying(to flags: CGEventFlags) -> CGEventFlags {
-        CGEventFlags(rawValue: strippingRightCommand(flags).rawValue | mask)
-    }
-}
 
 // MARK: - Logging (stderr; captured by launchd's StandardErrorPath)
 
@@ -140,18 +106,12 @@ final class HyperTap {
             log("event tap was disabled (\(type == .tapDisabledByTimeout ? "timeout" : "user input")); re-enabled")
             return Unmanaged.passUnretained(event)
 
-        case .flagsChanged
-            where event.getIntegerValueField(.keyboardEventKeycode) == Int64(kVK_RightCommand):
-            return nil  // Swallow the physical Right Command press/release.
-
-        case .keyDown, .keyUp:
-            if Hyper.isRightCommandDown(event.flags) {
-                event.flags = Hyper.applying(to: event.flags)
-            }
-
         default:
-            if Hyper.isRightCommandDown(event.flags) {
-                event.flags = Hyper.strippingRightCommand(event.flags)
+            let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+            switch Hyper.decide(type: type, keyCode: keyCode, flags: event.flags) {
+            case .drop: return nil
+            case .pass: break
+            case .rewrite(let flags): event.flags = flags
             }
         }
         return Unmanaged.passUnretained(event)

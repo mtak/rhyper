@@ -6,6 +6,7 @@ class Rhyper < Formula
   depends_on :macos
 
   def install
+    system "make", "test"
     system "make", "install", "PREFIX=#{prefix}"
   end
 

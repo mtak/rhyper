@@ -3,7 +3,9 @@
 
 APP        = rhyper
 LABEL      = nl.mtak.rhyper
-SRC        = main.swift
+SRC        = main.swift Hyper.swift
+TEST_SRC   = Hyper.swift tests/main.swift
+TEST_BIN   = $(BUILD_DIR)/$(APP)-tests
 BUILD_DIR  = build
 BIN        = $(BUILD_DIR)/$(APP)
 
@@ -17,7 +19,7 @@ LOG        = $(HOME)/Library/Logs/$(APP).log
 SWIFTC     = xcrun swiftc
 SWIFTFLAGS = -O -swift-version 6
 
-.PHONY: all build run clean install uninstall agent-install agent-uninstall load unload restart
+.PHONY: all build test run clean install uninstall agent-install agent-uninstall load unload restart
 
 all: build
 
@@ -26,6 +28,13 @@ build: $(BIN)
 $(BIN): $(SRC)
 	@mkdir -p $(BUILD_DIR)
 	$(SWIFTC) $(SWIFTFLAGS) -o $(BIN) $(SRC)
+
+test: $(TEST_BIN)
+	./$(TEST_BIN)
+
+$(TEST_BIN): $(TEST_SRC)
+	@mkdir -p $(BUILD_DIR)
+	$(SWIFTC) $(SWIFTFLAGS) -o $(TEST_BIN) $(TEST_SRC)
 
 run: build
 	./$(BIN)
