@@ -21,9 +21,14 @@ Karabiner-Elements, no kernel or driver extensions.
 ### Homebrew
 
 ```sh
-brew install mtak/tap/rhyper
+brew tap mtak/tap
+brew trust mtak/tap      # Homebrew 7+ refuses formulae from untrusted taps
+brew install rhyper
 brew services start rhyper
 ```
+
+Then grant Accessibility to `/opt/homebrew/opt/rhyper/bin/rhyper`
+(see [Permissions](#permissions)).
 
 ### From source
 
